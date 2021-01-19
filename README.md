@@ -29,3 +29,13 @@
 
 #### Reply:
 * Data: {"success": "<true/false>"}
+
+
+
+### POST /users/valid
+#### Request:
+* Type: application/json
+* Data: {"token": "<hash>"}
+
+#### Reply:
+* Data: {"success": "<true/false>"}
