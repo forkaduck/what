@@ -1,14 +1,21 @@
 
 ## API Endpoints
-* /users/<id>/name
-Request:
-Reply:   Name associated with id
+* Strings are all UTF-8
 
-* /users/<id>/password
-Request: Password hash (utf-8 string)
-Reply:   Valid (true/false) 
+### POST /users/password
+#### Request:
+* Type: application/json
+* Data: {"name": "<name>", "pass": "<password>"}
 
-* /users/<id>/password/change
-Request: New Password hash (utf-8 string)
-Reply:   Success (true/false)
+#### Reply:
+* Data: {"valid": "<true/false>", "token": "<hash>"}
 
+
+
+### POST /users/password/change
+#### Request:
+* Type: application/json
+* Data: {"token": "<hash>", "oldpass": "<password>", "newpass": "<password>"}
+
+#### Reply:
+* Data: {"success": "<true/false>"}
