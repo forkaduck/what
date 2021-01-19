@@ -5,7 +5,7 @@
 ### POST /users/password
 #### Request:
 * Type: application/json
-* Data: {"name": "<name>", "pass": "<password>"}
+* Data: {"id": "<id>", "pass": "<password>"}
 
 #### Reply:
 * Data: {"valid": "<true/false>", "token": "<hash>"}
@@ -16,6 +16,16 @@
 #### Request:
 * Type: application/json
 * Data: {"token": "<hash>", "oldpass": "<password>", "newpass": "<password>"}
+
+#### Reply:
+* Data: {"success": "<true/false>"}
+
+
+
+### POST /users/register
+#### Request:
+* Type: application/json
+* Data: {"name": "<id>", "pass": "<password>"}
 
 #### Reply:
 * Data: {"success": "<true/false>"}
