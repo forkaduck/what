@@ -12,6 +12,7 @@ pub mod threadpool;
 // handle SIGINT
 // implement database interface
 // implement generic way to create endpoints
+// implement clean shutdown
 
 fn handle_connection(mut stream: TcpStream) {
     let mut buffer = [0; 1024];
@@ -49,7 +50,3 @@ fn main() {
         }
     }
 }
-
-// user accounts with passwords
-// sum of money missing
-// your account balance
