@@ -2,28 +2,47 @@ use std::{
     fs,
     io::prelude::*,
     net::{TcpListener, TcpStream},
+    sync::{Arc, Mutex},
 };
 
-pub mod httpbuilder;
+pub mod builders;
 pub mod serverio;
 pub mod threadpool;
 
+// Working on
 // TODO
 // handle SIGINT
 // implement database interface
-// implement generic way to create endpoints
 // implement clean shutdown
 
+const ENDPOINTS: &'static [&'static builders::EndpointFace]  = &[&builders::EndpointFace {
+        uri: "/test",
+        requirements: &["test"],
+        handler: test,
+    }];
+
+
+fn test(data: serde_json::Value) -> Result<(), ()> {
+    Ok(())
+}
+
 fn handle_connection(mut stream: TcpStream) {
-    let mut buffer = [0; 1024];
+    let mut buffer: [u8; 1024] = [0; 1024];
 
     stream.read(&mut buffer).unwrap();
     println!("Request: {}", String::from_utf8_lossy(&buffer[..]));
 
+    /*for i in endpoints {
+        let payload = 
+
+        let data = serde_json::from_str()
+        i.check();
+t   }*/
+
     let response = {
-        let mut builder = httpbuilder::HttpBuilder::default();
+        let mut builder = builders::HttpBuilder::default();
         builder.set_code(200).unwrap();
-        builder.set_content(fs::read_to_string("index.html").unwrap());
+        builder.set_content(fs::read_to_string("index.html").unwrap(), "text/html".to_string());
         builder.build()
     };
 
