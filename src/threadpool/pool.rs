@@ -3,6 +3,8 @@ use std::{
     thread,
 };
 
+use log::{debug, info};
+
 type Job = Box<dyn FnOnce() + Send + 'static>;
 
 enum Message {
@@ -14,7 +16,6 @@ pub struct ThreadPool {
     workers: Vec<Worker>,
     sender: mpsc::Sender<Message>,
 }
-
 
 impl ThreadPool {
     /// Create a new ThreadPool.
@@ -54,14 +55,14 @@ impl ThreadPool {
 
 impl Drop for ThreadPool {
     fn drop(&mut self) {
-        println!("Sending terminate message to all workers");
+        info!("Sending terminate message to all workers");
 
         for _ in &self.workers {
             self.sender.send(Message::Terminate).unwrap();
         }
 
         for worker in &mut self.workers {
-            println!("Shutting down worker {}", worker.id);
+            info!("Shutting down worker {}", worker.id);
 
             if let Some(thread) = worker.thread.take() {
                 thread.join().unwrap();
@@ -85,11 +86,11 @@ impl Worker {
 
                 match message {
                     Message::NewJob(job) => {
-                        println!("Worker {} got a job", id);
+                        debug!("Worker {} got a job", id);
                         job();
                     }
                     Message::Terminate => {
-                        println!("Worker {} terminating", id);
+                        debug!("Worker {} terminating", id);
                         break;
                     }
                 }

@@ -4,52 +4,75 @@ use std::{
     net::{TcpListener, TcpStream},
 };
 
-pub mod httpbuilder;
+use log::{debug, error, info};
+
+use hyper::http::{Response, StatusCode};
+
 pub mod serverio;
 pub mod threadpool;
 
+// Working on
 // TODO
 // handle SIGINT
-// implement database interface
-// implement generic way to create endpoints
+// implement clean shutdown
 
-fn handle_connection(mut stream: TcpStream) {
-    let mut buffer = [0; 1024];
+fn handle_connection(mut stream: TcpStream, filepath: String) {
+    let mut buffer: [u8; 1024] = [0; 1024];
 
     stream.read(&mut buffer).unwrap();
-    println!("Request: {}", String::from_utf8_lossy(&buffer[..]));
+    debug!("\nRequest:\n {}", String::from_utf8_lossy(&buffer[..]));
 
-    let response = {
-        let mut builder = httpbuilder::HttpBuilder::default();
-        builder.set_code(200).unwrap();
-        builder.set_content(fs::read_to_string("index.html").unwrap());
-        builder.build()
-    };
+    {
+        let content = fs::read_to_string(filepath).unwrap();
 
-    stream.write(String::from(response).as_bytes()).unwrap();
-    stream.flush().unwrap();
-}
+        let response = Response::builder()
+            .status(StatusCode::OK)
+            .header("Content-Length", content.len().to_string())
+            .header("Content-Type", "text/html")
+            .body(content)
+            .unwrap();
 
-fn main() {
-    if let Ok(args) = serverio::Args::argparse() {
-        if let Ok(listener) = TcpListener::bind(args.sockaddr) {
-            println!("Bound to {}", args.sockaddr);
+        let (parts, body) = response.into_parts();
 
-            let pool = threadpool::ThreadPool::new(10);
+        let mut responseparse: String = format!("HTTP/1.1 {}\r\n", parts.status);
 
-            for stream in listener.incoming() {
-                let stream = stream.unwrap();
-
-                pool.execute(|| {
-                    handle_connection(stream);
-                });
+        for i in parts.headers {
+            if let Some(first) = i.0 {
+                responseparse.push_str(&format!("{:?}: {:?}\r\n", first, i.1)[..]);
             }
-        } else {
-            println!("Failed to bind to {}", args.sockaddr);
         }
+        responseparse.push_str(&format!("\r\n\r\n")[..]);
+        responseparse.push_str(&body[..]);
+
+        debug!("\nResponse:\n{}", responseparse);
+
+        stream.write(responseparse.as_bytes()).unwrap();
+        stream.flush().unwrap();
     }
 }
 
-// user accounts with passwords
-// sum of money missing
-// your account balance
+fn main() {
+    env_logger::init();
+
+    if let Ok(args) = serverio::Args::argparse() {
+        let _ = match TcpListener::bind(args.sockaddr) {
+            Ok(listener) => {
+                info!("Bound to {}", args.sockaddr);
+
+                let pool = threadpool::ThreadPool::new(10);
+
+                for stream in listener.incoming() {
+                    let stream = stream.unwrap();
+                    let local_filepath = args.file.clone();
+
+                    pool.execute(|| {
+                        handle_connection(stream, local_filepath);
+                    });
+                }
+            }
+            Err(error) => {
+                error!("Failed to bind to {} -> {}", args.sockaddr, error);
+            }
+        };
+    }
+}
