@@ -2,7 +2,8 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 
 pub struct Args {
     pub sockaddr: SocketAddr,
-    pub file: String,
+    pub filepath: String,
+    pub rand_ret: bool,
 }
 
 use log::error;
@@ -11,6 +12,7 @@ impl Args {
     pub fn argparse() -> Result<Args, ()> {
         let mut port = 0;
         let mut filepath = String::new();
+        let mut rand_ret = false;
         let mut ipslice: Vec<u8> = vec![];
 
         let mut lastarg = String::from("");
@@ -28,6 +30,7 @@ impl Args {
                         "       --hv4 <ip>    // the ip address to bind to",
                         "       -p <port>     // the port",
                         "       --file <file> // the default landing page",
+                        "       --random-ret  // changes the http return code from 200 to a random number (100 - 599)",
                     ));
                     return Err(());
                 }
@@ -35,6 +38,7 @@ impl Args {
                 "--hv4" => (),
                 "-p" => (),
                 "--file" => (),
+                "--random-ret" => (),
 
                 _ => match lastarg.as_str() {
                     "-h" => (),
@@ -54,6 +58,10 @@ impl Args {
                         filepath = i.parse().unwrap();
                     }
 
+                    "--random-ret" => {
+                        rand_ret = true;
+                    }
+
                     _ => {
                         error!("Unrecognized option '{}'", lastarg);
                     }
@@ -68,14 +76,15 @@ impl Args {
             return Err(());
         }
 
-        let sock = SocketAddr::V4(SocketAddrV4::new(
+        let sockaddr = SocketAddr::V4(SocketAddrV4::new(
             Ipv4Addr::new(ipslice[3], ipslice[2], ipslice[1], ipslice[0]),
             port,
         ));
 
         Ok(Args {
-            sockaddr: sock,
-            file: filepath,
+            sockaddr,
+            filepath,
+            rand_ret,
         })
     }
 }
