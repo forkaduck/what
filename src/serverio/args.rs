@@ -21,14 +21,14 @@ impl Args {
         for i in args {
             match i.as_str() {
                 "-h" => {
-                    println!(
-                        "{}\n{}\n{}\n{}\n{}\n",
+                    println!(concat!(
                         "server <option> <option parameter> [<option> <option parameter> ...]",
                         "Options:",
-                        "       -h          // shows this help section",
-                        "       --hv4 <ip>   // the ip address to bind to",
-                        "       -p <port>   // the port"
-                    );
+                        "       -h            // shows this help section",
+                        "       --hv4 <ip>    // the ip address to bind to",
+                        "       -p <port>     // the port",
+                        "       --file <file> // the default landing page",
+                    ));
                     return Err(());
                 }
 
