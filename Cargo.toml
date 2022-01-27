@@ -1,5 +1,5 @@
 [package]
-name = "server"
+name = "what"
 version = "0.1.0"
 authors = ["0xDEADC0DEx <48600374+0xDEADC0DEx@users.noreply.github.com>"]
 edition = "2021"
