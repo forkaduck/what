@@ -17,38 +17,38 @@ impl Args {
         for i in args {
             match i.as_str() {
                 "-h" => {
-                    println!("{}\n{}\n{}\n{}\n{}\n",
-                             "server <option> <option parameter> [<option> <option parameter> ...]",
-                             "Options:",
-                             "       -h          // shows this help section",
-                             "       -hv4 <ip>   // the ip address to bind to",
-                             "       -p <port>   // the port");
+                    println!(
+                        "{}\n{}\n{}\n{}\n{}\n",
+                        "server <option> <option parameter> [<option> <option parameter> ...]",
+                        "Options:",
+                        "       -h          // shows this help section",
+                        "       -hv4 <ip>   // the ip address to bind to",
+                        "       -p <port>   // the port"
+                    );
                     return Err(());
                 }
 
                 "-hv4" => (),
                 "-p" => (),
 
-                _ => {
-                    match lastarg.as_str() {
-                        "-h" => (),
-                        "-hv4" => {
-                            let slices: Vec<&str> = i.split('.').collect();
+                _ => match lastarg.as_str() {
+                    "-h" => (),
+                    "-hv4" => {
+                        let slices: Vec<&str> = i.split('.').collect();
 
-                            for j in (0..slices.len()).rev() {
-                                ipslice.push(slices[j].parse::<u8>().unwrap());
-                            }
-                        }
-
-                        "-p" => {
-                            port = i.parse().unwrap();
-                        }
-
-                        _ => {
-                            println!("Unrecognized option '{}'", lastarg);
+                        for j in (0..slices.len()).rev() {
+                            ipslice.push(slices[j].parse::<u8>().unwrap());
                         }
                     }
-                }
+
+                    "-p" => {
+                        port = i.parse().unwrap();
+                    }
+
+                    _ => {
+                        println!("Unrecognized option '{}'", lastarg);
+                    }
+                },
             }
             lastarg = i;
         }

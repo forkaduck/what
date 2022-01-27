@@ -15,7 +15,6 @@ pub struct ThreadPool {
     sender: mpsc::Sender<Message>,
 }
 
-
 impl ThreadPool {
     /// Create a new ThreadPool.
     ///

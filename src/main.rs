@@ -2,29 +2,17 @@ use std::{
     fs,
     io::prelude::*,
     net::{TcpListener, TcpStream},
-    sync::{Arc, Mutex},
 };
 
-pub mod builders;
+use hyper::http::{Response, StatusCode};
+
 pub mod serverio;
 pub mod threadpool;
 
 // Working on
 // TODO
 // handle SIGINT
-// implement database interface
 // implement clean shutdown
-
-const ENDPOINTS: &'static [&'static builders::EndpointFace]  = &[&builders::EndpointFace {
-        uri: "/test",
-        requirements: &["test"],
-        handler: test,
-    }];
-
-
-fn test(data: serde_json::Value) -> Result<(), ()> {
-    Ok(())
-}
 
 fn handle_connection(mut stream: TcpStream) {
     let mut buffer: [u8; 1024] = [0; 1024];
@@ -32,22 +20,34 @@ fn handle_connection(mut stream: TcpStream) {
     stream.read(&mut buffer).unwrap();
     println!("Request: {}", String::from_utf8_lossy(&buffer[..]));
 
-    /*for i in endpoints {
-        let payload = 
+    {
+        let content = fs::read_to_string("index.html").unwrap();
 
-        let data = serde_json::from_str()
-        i.check();
-t   }*/
+        let response = Response::builder()
+            .status(StatusCode::OK)
+            .header("Content-Length", content.len().to_string())
+            .header("Content-Type", "text/html")
+            .body(content)
+            .unwrap();
 
-    let response = {
-        let mut builder = builders::HttpBuilder::default();
-        builder.set_code(200).unwrap();
-        builder.set_content(fs::read_to_string("index.html").unwrap(), "text/html".to_string());
-        builder.build()
-    };
+        let (parts, body) = response.into_parts();
 
-    stream.write(String::from(response).as_bytes()).unwrap();
-    stream.flush().unwrap();
+        let mut responseparse: String = format!("HTTP/1.1 {}\r\n", parts.status);
+
+        for i in parts.headers {
+            if let Some(first) = i.0 {
+                responseparse.push_str(&format!("{:?}: {:?}\r\n", first, i.1)[..]);
+            }
+        }
+        responseparse.push_str(&format!("\r\n\r\n")[..]);
+
+        responseparse.push_str(&body[..]);
+
+        println!("{}", responseparse);
+
+        stream.write(responseparse.as_bytes()).unwrap();
+        stream.flush().unwrap();
+    }
 }
 
 fn main() {
