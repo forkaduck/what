@@ -16,14 +16,14 @@ pub mod threadpool;
 // handle SIGINT
 // implement clean shutdown
 
-fn handle_connection(mut stream: TcpStream) {
+fn handle_connection(mut stream: TcpStream, filepath: String) {
     let mut buffer: [u8; 1024] = [0; 1024];
 
     stream.read(&mut buffer).unwrap();
     debug!("\nRequest:\n {}", String::from_utf8_lossy(&buffer[..]));
 
     {
-        let content = fs::read_to_string("index.html").unwrap();
+        let content = fs::read_to_string(filepath).unwrap();
 
         let response = Response::builder()
             .status(StatusCode::OK)
@@ -42,7 +42,6 @@ fn handle_connection(mut stream: TcpStream) {
             }
         }
         responseparse.push_str(&format!("\r\n\r\n")[..]);
-
         responseparse.push_str(&body[..]);
 
         debug!("\nResponse:\n{}", responseparse);
@@ -64,9 +63,10 @@ fn main() {
 
                 for stream in listener.incoming() {
                     let stream = stream.unwrap();
+                    let local_filepath = args.file.clone();
 
                     pool.execute(|| {
-                        handle_connection(stream);
+                        handle_connection(stream, local_filepath);
                     });
                 }
             }
