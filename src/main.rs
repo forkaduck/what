@@ -7,6 +7,7 @@ use std::{
 use log::{debug, error, info};
 
 use hyper::http::{Response, StatusCode};
+use rand::Rng;
 
 pub mod serverio;
 pub mod threadpool;
@@ -22,8 +23,10 @@ fn handle_connection(mut stream: TcpStream, filepath: String, rand_ret: bool) {
     stream.read(&mut buffer).unwrap();
     debug!("\nRequest:\n {}", String::from_utf8_lossy(&buffer[..]));
 
+    let mut rng = rand::thread_rng();
+
     let response_code = match rand_ret {
-        true => StatusCode::from_u16(rand::random()).unwrap(),
+        true => StatusCode::from_u16(rng.gen_range(100, 599)).unwrap(),
         false => StatusCode::OK,
     };
 

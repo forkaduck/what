@@ -6,7 +6,7 @@ pub struct Args {
     pub rand_ret: bool,
 }
 
-use log::error;
+use log::{debug, error};
 
 impl Args {
     pub fn argparse() -> Result<Args, ()> {
@@ -27,13 +27,13 @@ impl Args {
             match i.as_str() {
                 "-h" => {
                     println!(concat!(
-                        "server <option> <option parameter> [<option> <option parameter> ...]",
-                        "Options:",
-                        "       -h            // shows this help section",
-                        "       --hv4 <ip>    // the ip address to bind to",
-                        "       -p <port>     // the port",
-                        "       --file <file> // the default landing page",
-                        "       --random-ret  // changes the http return code from 200 to a random number (100 - 599)",
+                        "server <option> <option parameter> [<option> <option parameter> ...]\n",
+                        "Options:\n",
+                        "       -h            // shows this help section\n",
+                        "       --hv4 <ip>    // the ip address to bind to\n",
+                        "       -p <port>     // the port\n",
+                        "       --file <file> // the default landing page\n",
+                        "       --randomret  // changes the http return code from 200 to a random number (100 - 599)\n",
                     ));
                     return Err(());
                 }
@@ -41,7 +41,11 @@ impl Args {
                 "--hv4" => (),
                 "-p" => (),
                 "--file" => (),
-                "--random-ret" => (),
+
+                "--randomret" => {
+                    arg.rand_ret = true;
+                    debug!("Random return: {}", arg.rand_ret);
+                }
 
                 _ => match lastarg.as_str() {
                     "-h" => (),
@@ -55,15 +59,15 @@ impl Args {
 
                     "-p" => {
                         port = i.parse().unwrap();
+                        debug!("Port: {}", port);
                     }
 
                     "--file" => {
                         arg.filepath = i.parse().unwrap();
+                        debug!("File: {}", arg.filepath);
                     }
 
-                    "--random-ret" => {
-                        arg.rand_ret = true;
-                    }
+                    "--randomret" => (),
 
                     _ => {
                         error!("Unrecognized option '{}'", lastarg);
@@ -83,6 +87,7 @@ impl Args {
             Ipv4Addr::new(ipslice[3], ipslice[2], ipslice[1], ipslice[0]),
             port,
         ));
+        debug!("{}", arg.sockaddr);
 
         Ok(arg)
     }
