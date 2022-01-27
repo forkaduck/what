@@ -4,6 +4,8 @@ use std::{
     net::{TcpListener, TcpStream},
 };
 
+use log::{debug, error, info};
+
 use hyper::http::{Response, StatusCode};
 
 pub mod serverio;
@@ -18,7 +20,7 @@ fn handle_connection(mut stream: TcpStream) {
     let mut buffer: [u8; 1024] = [0; 1024];
 
     stream.read(&mut buffer).unwrap();
-    println!("Request: {}", String::from_utf8_lossy(&buffer[..]));
+    debug!("\nRequest:\n {}", String::from_utf8_lossy(&buffer[..]));
 
     {
         let content = fs::read_to_string("index.html").unwrap();
@@ -43,7 +45,7 @@ fn handle_connection(mut stream: TcpStream) {
 
         responseparse.push_str(&body[..]);
 
-        println!("{}", responseparse);
+        debug!("\nResponse:\n{}", responseparse);
 
         stream.write(responseparse.as_bytes()).unwrap();
         stream.flush().unwrap();
@@ -51,21 +53,26 @@ fn handle_connection(mut stream: TcpStream) {
 }
 
 fn main() {
+    env_logger::init();
+
     if let Ok(args) = serverio::Args::argparse() {
-        if let Ok(listener) = TcpListener::bind(args.sockaddr) {
-            println!("Bound to {}", args.sockaddr);
+        let _ = match TcpListener::bind(args.sockaddr) {
+            Ok(listener) => {
+                info!("Bound to {}", args.sockaddr);
 
-            let pool = threadpool::ThreadPool::new(10);
+                let pool = threadpool::ThreadPool::new(10);
 
-            for stream in listener.incoming() {
-                let stream = stream.unwrap();
+                for stream in listener.incoming() {
+                    let stream = stream.unwrap();
 
-                pool.execute(|| {
-                    handle_connection(stream);
-                });
+                    pool.execute(|| {
+                        handle_connection(stream);
+                    });
+                }
             }
-        } else {
-            println!("Failed to bind to {}", args.sockaddr);
-        }
+            Err(error) => {
+                error!("Failed to bind to {} -> {}", args.sockaddr, error);
+            }
+        };
     }
 }

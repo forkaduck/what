@@ -4,6 +4,8 @@ pub struct Args {
     pub sockaddr: SocketAddr,
 }
 
+use log::error;
+
 impl Args {
     pub fn argparse() -> Result<Args, ()> {
         let mut port = 0;
@@ -46,7 +48,7 @@ impl Args {
                     }
 
                     _ => {
-                        println!("Unrecognized option '{}'", lastarg);
+                        error!("Unrecognized option '{}'", lastarg);
                     }
                 },
             }
@@ -54,7 +56,7 @@ impl Args {
         }
 
         if port == 0 || ipslice.len() < 3 {
-            println!("Please give at least the socket ip and port to bind to!");
+            error!("Please give at least the socket ip and port to bind to!");
             return Err(());
         }
 
