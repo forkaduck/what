@@ -21,11 +21,17 @@ pub mod threadpool;
 // implement clean shutdown
 // file logging
 
+struct LogFile {
+    file: fs::File,
+    entry_counter: u32,
+}
+
 fn handle_connection(
     mut stream: TcpStream,
     filepath: String,
     rand_ret: bool,
-    log: Arc<Mutex<fs::File>>,
+    logfile: Arc<Mutex<LogFile>>,
+    max_log_entries: u32,
 ) {
     let mut buffer: [u8; 1024] = [0; 1024];
 
@@ -33,8 +39,15 @@ fn handle_connection(
     debug!("\nRequest:\n {}", String::from_utf8_lossy(&buffer[..]));
 
     // Write to the log file
-    let mut log = log.lock().unwrap();
-    log.write_all(&buffer[..]).unwrap();
+    let mut logfile = logfile.lock().unwrap();
+    if logfile.entry_counter > max_log_entries {
+        logfile.file.set_len(0).unwrap();
+        logfile.entry_counter = 0;
+        debug!("entry_counter reset!");
+    }
+
+    logfile.file.write_all(&buffer[..]).unwrap();
+    logfile.entry_counter += 1;
 
     let mut rng = rand::thread_rng();
 
@@ -76,14 +89,16 @@ fn handle_connection(
 fn main() {
     env_logger::init();
 
-    let log = fs::OpenOptions::new()
-        .write(true)
-        .append(true)
-        .create(true)
-        .open("access.log")
-        .unwrap();
-
-    let log_mutex = Arc::new(Mutex::new(log));
+    // Create the log file descriptor
+    let logfile = Arc::new(Mutex::new(LogFile {
+        file: fs::OpenOptions::new()
+            .write(true)
+            .append(true)
+            .create(true)
+            .open("access.log")
+            .unwrap(),
+        entry_counter: 0,
+    }));
 
     if let Ok(args) = serverio::Args::argparse() {
         let _ = match TcpListener::bind(args.sockaddr) {
@@ -95,10 +110,17 @@ fn main() {
                 for stream in listener.incoming() {
                     let stream = stream.unwrap();
                     let filepath = args.filepath.clone();
-                    let log_mutex = log_mutex.clone();
+                    let logfile = logfile.clone();
+                    let max_log_entries = args.max_log_entries.clone();
 
                     pool.execute(move || {
-                        handle_connection(stream, filepath, args.rand_ret, log_mutex);
+                        handle_connection(
+                            stream,
+                            filepath,
+                            args.rand_ret,
+                            logfile,
+                            max_log_entries,
+                        );
                     });
                 }
             }

@@ -4,9 +4,10 @@ pub struct Args {
     pub sockaddr: SocketAddr,
     pub filepath: String,
     pub rand_ret: bool,
+    pub max_log_entries: u32,
 }
 
-use log::{debug, error};
+use log::{debug, error, info};
 
 impl Args {
     pub fn argparse() -> Result<Args, ()> {
@@ -14,6 +15,7 @@ impl Args {
             sockaddr: SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080)),
             filepath: String::new(),
             rand_ret: false,
+            max_log_entries: 0,
         };
 
         let mut port = 0;
@@ -33,7 +35,8 @@ impl Args {
                         "       --hv4 <ip>    // the ip address to bind to\n",
                         "       -p <port>     // the port\n",
                         "       --file <file> // the default landing page\n",
-                        "       --randomret  // changes the http return code from 200 to a random number (100 - 599)\n",
+                        "       --random-ret  // changes the http return code from 200 to a random number (100 - 599)\n",
+                        "       --max-log-entries   // max amount of entries to log in the access.log file before it is reset\n",
                     ));
                     return Err(());
                 }
@@ -42,10 +45,12 @@ impl Args {
                 "-p" => (),
                 "--file" => (),
 
-                "--randomret" => {
+                "--random-ret" => {
                     arg.rand_ret = true;
                     debug!("Random return: {}", arg.rand_ret);
                 }
+
+                "--max-log-entries" => (),
 
                 _ => match lastarg.as_str() {
                     "-h" => (),
@@ -67,8 +72,12 @@ impl Args {
                         debug!("File: {}", arg.filepath);
                     }
 
-                    "--randomret" => (),
+                    "--random-ret" => (),
 
+                    "--max-log-entries" => {
+                        arg.max_log_entries = i.parse().unwrap();
+                        debug!("Max log entries: {}", arg.max_log_entries);
+                    }
                     _ => {
                         error!("Unrecognized option '{}'", lastarg);
                     }
@@ -81,6 +90,11 @@ impl Args {
             error!("Please give at least the socket ip, port to bind to and a file which should be served!");
             error!("-h might help you with this.");
             return Err(());
+        }
+
+        if arg.max_log_entries == 0 {
+            arg.max_log_entries = 10000;
+            info!("Maximum log entries not set! Default is 10000.");
         }
 
         arg.sockaddr = SocketAddr::V4(SocketAddrV4::new(
