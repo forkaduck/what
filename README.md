@@ -9,6 +9,8 @@ Options:
        --hv4 <ip>    // the ip address to bind to
        -p <port>     // the port
        --file <file> // the default landing page
+       --random-ret  // changes the http return code from 200 to a random number (100 - 599)
+       --max-log-entries   // max amount of entries to log in the access.log file before it is reset
 ```
 
 ## Building
