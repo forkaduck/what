@@ -9,6 +9,9 @@ use log::{debug, error, info};
 use hyper::http::{Response, StatusCode};
 use rand::Rng;
 
+use std::io::Write;
+use std::sync::{Arc, Mutex};
+
 pub mod serverio;
 pub mod threadpool;
 
@@ -16,12 +19,22 @@ pub mod threadpool;
 // TODO
 // handle SIGINT
 // implement clean shutdown
+// file logging
 
-fn handle_connection(mut stream: TcpStream, filepath: String, rand_ret: bool) {
+fn handle_connection(
+    mut stream: TcpStream,
+    filepath: String,
+    rand_ret: bool,
+    log: Arc<Mutex<fs::File>>,
+) {
     let mut buffer: [u8; 1024] = [0; 1024];
 
     stream.read(&mut buffer).unwrap();
     debug!("\nRequest:\n {}", String::from_utf8_lossy(&buffer[..]));
+
+    // Write to the log file
+    let mut log = log.lock().unwrap();
+    log.write_all(&buffer[..]).unwrap();
 
     let mut rng = rand::thread_rng();
 
@@ -33,6 +46,7 @@ fn handle_connection(mut stream: TcpStream, filepath: String, rand_ret: bool) {
     {
         let content = fs::read_to_string(filepath).unwrap();
 
+        // Build the response from the default file file
         let response = Response::builder()
             .status(response_code)
             .header("Content-Length", content.len().to_string())
@@ -62,6 +76,15 @@ fn handle_connection(mut stream: TcpStream, filepath: String, rand_ret: bool) {
 fn main() {
     env_logger::init();
 
+    let log = fs::OpenOptions::new()
+        .write(true)
+        .append(true)
+        .create(true)
+        .open("access.log")
+        .unwrap();
+
+    let log_mutex = Arc::new(Mutex::new(log));
+
     if let Ok(args) = serverio::Args::argparse() {
         let _ = match TcpListener::bind(args.sockaddr) {
             Ok(listener) => {
@@ -72,9 +95,10 @@ fn main() {
                 for stream in listener.incoming() {
                     let stream = stream.unwrap();
                     let filepath = args.filepath.clone();
+                    let log_mutex = log_mutex.clone();
 
                     pool.execute(move || {
-                        handle_connection(stream, filepath, args.rand_ret);
+                        handle_connection(stream, filepath, args.rand_ret, log_mutex);
                     });
                 }
             }
