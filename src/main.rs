@@ -12,6 +12,8 @@ use rand::Rng;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 
+use chrono;
+
 pub mod serverio;
 pub mod threadpool;
 
@@ -19,7 +21,6 @@ pub mod threadpool;
 // TODO
 // handle SIGINT
 // implement clean shutdown
-// file logging
 
 struct LogFile {
     file: fs::File,
@@ -36,7 +37,6 @@ fn handle_connection(
     let mut buffer: [u8; 1024] = [0; 1024];
 
     stream.read(&mut buffer).unwrap();
-    debug!("\nRequest:\n {}", String::from_utf8_lossy(&buffer[..]));
 
     // Write to the log file
     let mut logfile = logfile.lock().unwrap();
@@ -46,7 +46,11 @@ fn handle_connection(
         debug!("entry_counter reset!");
     }
 
-    logfile.file.write_all(&buffer[..]).unwrap();
+    let logout = format!("Request Timestamp: {}\n", chrono::offset::Utc::now())
+        + std::str::from_utf8(&buffer[..]).unwrap()
+        + "\n\n";
+
+    logfile.file.write_all(logout.as_bytes()).unwrap();
     logfile.entry_counter += 1;
 
     let mut rng = rand::thread_rng();
