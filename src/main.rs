@@ -19,7 +19,6 @@ pub mod threadpool;
 
 // Working on
 // TODO
-// handle SIGINT
 // implement clean shutdown
 
 struct LogFile {
@@ -46,7 +45,7 @@ fn handle_connection(
         debug!("entry_counter reset!");
     }
 
-    let logout = format!("Request Timestamp: {}\n", chrono::offset::Utc::now())
+    let logout = format!("\nRequest Timestamp: {}\n", chrono::offset::Utc::now())
         + std::str::from_utf8(&buffer[..]).unwrap()
         + "\n\n";
 
