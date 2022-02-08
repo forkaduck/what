@@ -35,7 +35,10 @@ fn handle_connection(
 ) {
     let mut buffer: [u8; 1024] = [0; 1024];
 
-    stream.read(&mut buffer).unwrap();
+    if stream.read(&mut buffer).is_err() {
+        debug!("Reading stream failed!");
+        return;
+    }
 
     // Write to the log file
     let mut logfile = logfile.lock().unwrap();
