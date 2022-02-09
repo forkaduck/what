@@ -33,7 +33,7 @@ fn handle_connection(
     logfile: Arc<Mutex<LogFile>>,
     max_log_entries: u32,
 ) {
-    let mut buffer: [u8; 1024] = [0; 1024];
+    let mut buffer: [u8; 8192] = [0; 8192];
 
     if stream.read(&mut buffer).is_err() {
         debug!("Reading stream failed!");
@@ -48,11 +48,19 @@ fn handle_connection(
         debug!("entry_counter reset!");
     }
 
-    let logout = format!("\nRequest Timestamp: {}\n", chrono::offset::Utc::now())
-        + std::str::from_utf8(&buffer[..]).unwrap()
-        + "\n\n";
+    let mut outbuffer: Vec<u8> = vec![];
 
-    logfile.file.write_all(logout.as_bytes()).unwrap();
+    let mut size = 0;
+    for i in format!("\n\nRequest Timestamp: {}\n", chrono::offset::Utc::now()).as_bytes() {
+        outbuffer.push(*i);
+        size += 1;
+    }
+
+    for i in size..buffer.len() {
+        outbuffer.push(buffer[i]);
+    }
+
+    logfile.file.write_all(&outbuffer).unwrap();
     logfile.entry_counter += 1;
 
     let mut rng = rand::thread_rng();
