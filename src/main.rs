@@ -52,7 +52,6 @@ fn handle_connection(
 
     for i in format!("\n\nRequest Timestamp: {}\n", chrono::offset::Utc::now()).as_bytes() {
         outbuffer.push(*i);
-        size += 1;
     }
 
     for i in 0..buffer.len() {
