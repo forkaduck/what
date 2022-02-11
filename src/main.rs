@@ -55,7 +55,9 @@ fn handle_connection(
     }
 
     for i in 0..buffer.len() {
-        outbuffer.push(buffer[i]);
+        if buffer[i] != 0 {
+            outbuffer.push(buffer[i]);
+        }
     }
 
     logfile.file.write_all(&outbuffer).unwrap();
