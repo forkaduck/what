@@ -50,13 +50,12 @@ fn handle_connection(
 
     let mut outbuffer: Vec<u8> = vec![];
 
-    let mut size = 0;
     for i in format!("\n\nRequest Timestamp: {}\n", chrono::offset::Utc::now()).as_bytes() {
         outbuffer.push(*i);
         size += 1;
     }
 
-    for i in size..buffer.len() {
+    for i in 0..buffer.len() {
         outbuffer.push(buffer[i]);
     }
 
