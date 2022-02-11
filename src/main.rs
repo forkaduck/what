@@ -28,7 +28,7 @@ struct LogFile {
 
 fn handle_connection(
     mut stream: TcpStream,
-    filepath: String,
+    path: String,
     rand_ret: bool,
     logfile: Arc<Mutex<LogFile>>,
     max_log_entries: u32,
@@ -48,21 +48,25 @@ fn handle_connection(
         debug!("entry_counter reset!");
     }
 
-    let mut outbuffer: Vec<u8> = vec![];
+    // Prepend the request timestamp
+    {
+        let mut outbuffer: Vec<u8> = vec![];
 
-    for i in format!("\n\nRequest Timestamp: {}\n", chrono::offset::Utc::now()).as_bytes() {
-        outbuffer.push(*i);
-    }
-
-    for i in 0..buffer.len() {
-        if buffer[i] != 0 {
-            outbuffer.push(buffer[i]);
+        for i in format!("\n\nRequest Timestamp: {}\n", chrono::offset::Utc::now()).as_bytes() {
+            outbuffer.push(*i);
         }
+
+        for i in 0..buffer.len() {
+            if buffer[i] != 0 {
+                outbuffer.push(buffer[i]);
+            }
+        }
+
+        logfile.file.write_all(&outbuffer).unwrap();
+        logfile.entry_counter += 1;
     }
 
-    logfile.file.write_all(&outbuffer).unwrap();
-    logfile.entry_counter += 1;
-
+    // Return a random response code if needed
     let mut rng = rand::thread_rng();
 
     let response_code = match rand_ret {
@@ -71,7 +75,29 @@ fn handle_connection(
     };
 
     {
-        let content = fs::read_to_string(filepath).unwrap();
+        let mut return_robots = false;
+
+        // Check if the robots.txt is requested
+        {
+            let mut count: usize = 0;
+            let testcase = "/robots.txt".as_bytes();
+            for i in buffer.iter() {
+                if *i == testcase[count] && count < testcase.len() {
+                    count += 1;
+                }
+
+                if count == testcase.len() {
+                    return_robots = true;
+                    break;
+                }
+            }
+        }
+
+        let content = fs::read_to_string(match return_robots {
+            true => path + "/robots.txt",
+            false => path + "/index.html",
+        })
+        .unwrap();
 
         // Build the response from the default file file
         let response = Response::builder()
@@ -123,18 +149,12 @@ fn main() {
 
                 for stream in listener.incoming() {
                     let stream = stream.unwrap();
-                    let filepath = args.filepath.clone();
+                    let path = args.path.clone();
                     let logfile = logfile.clone();
                     let max_log_entries = args.max_log_entries.clone();
 
                     pool.execute(move || {
-                        handle_connection(
-                            stream,
-                            filepath,
-                            args.rand_ret,
-                            logfile,
-                            max_log_entries,
-                        );
+                        handle_connection(stream, path, args.rand_ret, logfile, max_log_entries);
                     });
                 }
             }
