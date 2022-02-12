@@ -127,7 +127,14 @@ fn handle_connection(
 }
 
 fn main() {
+    use ctrlc;
+    use std::sync::mpsc::channel;
+
+    let (tx, rx) = channel();
+
     env_logger::init();
+
+    ctrlc::set_handler(move || tx.send(()).unwrap()).unwrap();
 
     // Create the log file descriptor
     let logfile = Arc::new(Mutex::new(LogFile {
@@ -144,18 +151,38 @@ fn main() {
         let _ = match TcpListener::bind(args.sockaddr) {
             Ok(listener) => {
                 info!("Bound to {}", args.sockaddr);
+                listener.set_nonblocking(true).unwrap();
 
                 let pool = threadpool::ThreadPool::new(10);
 
-                for stream in listener.incoming() {
-                    let stream = stream.unwrap();
-                    let path = args.path.clone();
-                    let logfile = logfile.clone();
-                    let max_log_entries = args.max_log_entries.clone();
+                loop {
+                    match listener.accept() {
+                        Ok(stream) => {
+                            let path = args.path.clone();
+                            let logfile = logfile.clone();
+                            let max_log_entries = args.max_log_entries.clone();
 
-                    pool.execute(move || {
-                        handle_connection(stream, path, args.rand_ret, logfile, max_log_entries);
-                    });
+                            pool.execute(move || {
+                                handle_connection(
+                                    stream.0,
+                                    path,
+                                    args.rand_ret,
+                                    logfile,
+                                    max_log_entries,
+                                );
+                            });
+                        }
+                        Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                            use std::{thread, time};
+
+                            if rx.try_recv().ok() == Some(()) {
+                                break;
+                            }
+                            thread::sleep(time::Duration::from_millis(10));
+                            continue;
+                        }
+                        Err(e) => panic!("encountered IO error: {}", e),
+                    }
                 }
             }
             Err(error) => {
