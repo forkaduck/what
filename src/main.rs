@@ -6,20 +6,14 @@ use std::{
 
 use log::{debug, error, info};
 
-use hyper::http::{Response, StatusCode};
-use rand::Rng;
-
 use std::io::Write;
 use std::sync::{Arc, Mutex};
-
-use chrono;
 
 pub mod serverio;
 pub mod threadpool;
 
 // Working on
 // TODO
-// implement clean shutdown
 
 struct LogFile {
     file: fs::File,
@@ -33,6 +27,9 @@ fn handle_connection(
     logfile: Arc<Mutex<LogFile>>,
     max_log_entries: u32,
 ) {
+    use hyper::http::{Response, StatusCode};
+    use rand::Rng;
+
     let mut buffer: [u8; 8192] = [0; 8192];
 
     if stream.read(&mut buffer).is_err() {
@@ -127,7 +124,6 @@ fn handle_connection(
 }
 
 fn main() {
-    use ctrlc;
     use std::sync::mpsc::channel;
 
     let (tx, rx) = channel();
