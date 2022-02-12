@@ -2,7 +2,7 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 
 pub struct Args {
     pub sockaddr: SocketAddr,
-    pub filepath: String,
+    pub path: String,
     pub rand_ret: bool,
     pub max_log_entries: u32,
 }
@@ -13,7 +13,7 @@ impl Args {
     pub fn argparse() -> Result<Args, ()> {
         let mut arg = Args {
             sockaddr: SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080)),
-            filepath: String::new(),
+            path: String::new(),
             rand_ret: false,
             max_log_entries: 0,
         };
@@ -34,7 +34,7 @@ impl Args {
                         "       -h            // shows this help section\n",
                         "       --hv4 <ip>    // the ip address to bind to\n",
                         "       -p <port>     // the port\n",
-                        "       --file <file> // the default landing page\n",
+                        "       --path <path> // the path which contains an index.html and a robots.txt\n",
                         "       --random-ret  // changes the http return code from 200 to a random number (100 - 599)\n",
                         "       --max-log-entries   // max amount of entries to log in the access.log file before it is reset\n",
                     ));
@@ -43,7 +43,7 @@ impl Args {
 
                 "--hv4" => (),
                 "-p" => (),
-                "--file" => (),
+                "--path" => (),
 
                 "--random-ret" => {
                     arg.rand_ret = true;
@@ -67,9 +67,9 @@ impl Args {
                         debug!("Port: {}", port);
                     }
 
-                    "--file" => {
-                        arg.filepath = i.parse().unwrap();
-                        debug!("File: {}", arg.filepath);
+                    "--path" => {
+                        arg.path = i.parse().unwrap();
+                        debug!("File: {}", arg.path);
                     }
 
                     "--random-ret" => (),
@@ -86,7 +86,7 @@ impl Args {
             lastarg = i;
         }
 
-        if port == 0 || ipslice.len() < 3 || arg.filepath.is_empty() {
+        if port == 0 || ipslice.len() < 3 || arg.path.is_empty() {
             error!("Please give at least the socket ip, port to bind to and a file which should be served!");
             error!("-h might help you with this.");
             return Err(());

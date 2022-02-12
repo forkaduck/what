@@ -6,21 +6,14 @@ use std::{
 
 use log::{debug, error, info};
 
-use hyper::http::{Response, StatusCode};
-use rand::Rng;
-
 use std::io::Write;
 use std::sync::{Arc, Mutex};
-
-use chrono;
 
 pub mod serverio;
 pub mod threadpool;
 
 // Working on
 // TODO
-// handle SIGINT
-// implement clean shutdown
 
 struct LogFile {
     file: fs::File,
@@ -29,14 +22,20 @@ struct LogFile {
 
 fn handle_connection(
     mut stream: TcpStream,
-    filepath: String,
+    path: String,
     rand_ret: bool,
     logfile: Arc<Mutex<LogFile>>,
     max_log_entries: u32,
 ) {
-    let mut buffer: [u8; 1024] = [0; 1024];
+    use hyper::http::{Response, StatusCode};
+    use rand::Rng;
 
-    stream.read(&mut buffer).unwrap();
+    let mut buffer: [u8; 8192] = [0; 8192];
+
+    if stream.read(&mut buffer).is_err() {
+        debug!("Reading stream failed!");
+        return;
+    }
 
     // Write to the log file
     let mut logfile = logfile.lock().unwrap();
@@ -46,13 +45,25 @@ fn handle_connection(
         debug!("entry_counter reset!");
     }
 
-    let logout = format!("Request Timestamp: {}\n", chrono::offset::Utc::now())
-        + std::str::from_utf8(&buffer[..]).unwrap()
-        + "\n\n";
+    // Prepend the request timestamp
+    {
+        let mut outbuffer: Vec<u8> = vec![];
 
-    logfile.file.write_all(logout.as_bytes()).unwrap();
-    logfile.entry_counter += 1;
+        for i in format!("\n\nRequest Timestamp: {}\n", chrono::offset::Utc::now()).as_bytes() {
+            outbuffer.push(*i);
+        }
 
+        for i in 0..buffer.len() {
+            if buffer[i] != 0 {
+                outbuffer.push(buffer[i]);
+            }
+        }
+
+        logfile.file.write_all(&outbuffer).unwrap();
+        logfile.entry_counter += 1;
+    }
+
+    // Return a random response code if needed
     let mut rng = rand::thread_rng();
 
     let response_code = match rand_ret {
@@ -61,7 +72,29 @@ fn handle_connection(
     };
 
     {
-        let content = fs::read_to_string(filepath).unwrap();
+        let mut return_robots = false;
+
+        // Check if the robots.txt is requested
+        {
+            let mut count: usize = 0;
+            let testcase = "/robots.txt".as_bytes();
+            for i in buffer.iter() {
+                if *i == testcase[count] && count < testcase.len() {
+                    count += 1;
+                }
+
+                if count == testcase.len() {
+                    return_robots = true;
+                    break;
+                }
+            }
+        }
+
+        let content = fs::read_to_string(match return_robots {
+            true => path + "/robots.txt",
+            false => path + "/index.html",
+        })
+        .unwrap();
 
         // Build the response from the default file file
         let response = Response::builder()
@@ -91,7 +124,13 @@ fn handle_connection(
 }
 
 fn main() {
+    use std::sync::mpsc::channel;
+
+    let (tx, rx) = channel();
+
     env_logger::init();
+
+    ctrlc::set_handler(move || tx.send(()).unwrap()).unwrap();
 
     // Create the log file descriptor
     let logfile = Arc::new(Mutex::new(LogFile {
@@ -108,24 +147,38 @@ fn main() {
         let _ = match TcpListener::bind(args.sockaddr) {
             Ok(listener) => {
                 info!("Bound to {}", args.sockaddr);
+                listener.set_nonblocking(true).unwrap();
 
                 let pool = threadpool::ThreadPool::new(10);
 
-                for stream in listener.incoming() {
-                    let stream = stream.unwrap();
-                    let filepath = args.filepath.clone();
-                    let logfile = logfile.clone();
-                    let max_log_entries = args.max_log_entries.clone();
+                loop {
+                    match listener.accept() {
+                        Ok(stream) => {
+                            let path = args.path.clone();
+                            let logfile = logfile.clone();
+                            let max_log_entries = args.max_log_entries.clone();
 
-                    pool.execute(move || {
-                        handle_connection(
-                            stream,
-                            filepath,
-                            args.rand_ret,
-                            logfile,
-                            max_log_entries,
-                        );
-                    });
+                            pool.execute(move || {
+                                handle_connection(
+                                    stream.0,
+                                    path,
+                                    args.rand_ret,
+                                    logfile,
+                                    max_log_entries,
+                                );
+                            });
+                        }
+                        Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                            use std::{thread, time};
+
+                            if rx.try_recv().ok() == Some(()) {
+                                break;
+                            }
+                            thread::sleep(time::Duration::from_millis(10));
+                            continue;
+                        }
+                        Err(e) => panic!("encountered IO error: {}", e),
+                    }
                 }
             }
             Err(error) => {
